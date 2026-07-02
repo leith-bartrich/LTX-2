@@ -1,3 +1,10 @@
+<!-- FIE-FORK-BANNER-START (fork/docs patch; keep at very top, reapply verbatim on rebase) -->
+> [!NOTE]
+> **This is the FIE fork of [Lightricks/LTX-2](https://github.com/Lightricks/LTX-2).**
+> Default branch `fie-main` = upstream `main` + a small patch stack (high-quality / tensor-native I/O).
+> Releases are tagged `fie-v*`. See [FORK.md](FORK.md) for the patch stack, versioning, and maintenance workflow.
+<!-- FIE-FORK-BANNER-END -->
+
 # LTX-2
 
 [![Website](https://img.shields.io/badge/Website-LTX-181717?logo=google-chrome)](https://ltx.io)
