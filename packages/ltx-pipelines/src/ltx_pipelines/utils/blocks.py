@@ -527,7 +527,7 @@ class PromptEncoder:
         prompts: list[str],
         *,
         enhance_first_prompt: bool = False,
-        enhance_prompt_image: str | None = None,
+        enhance_prompt_image: str | torch.Tensor | None = None,
         enhance_prompt_seed: int = 42,
     ) -> list[EmbeddingsProcessorOutput]:
         """Encode *prompts* through Gemma -> embeddings processor, freeing each model after use."""

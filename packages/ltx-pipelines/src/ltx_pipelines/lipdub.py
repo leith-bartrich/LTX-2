@@ -103,7 +103,7 @@ class LipDubPipeline:
     def _create_stage_conditionings(
         self,
         images: list[ImageConditioningInput],
-        reference_video_path: str,
+        reference_video_path: str | torch.Tensor,
         reference_strength: float,
         height: int,
         width: int,
@@ -150,7 +150,7 @@ class LipDubPipeline:
         height: int,
         width: int,
         images: list[ImageConditioningInput],
-        reference_video_path: str,
+        reference_video_path: str | torch.Tensor,
         reference_strength: float = 1.0,
         enhance_prompt: bool = False,
         tiling_config: TilingConfig | None = None,

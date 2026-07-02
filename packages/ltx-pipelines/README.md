@@ -294,6 +294,30 @@ All pipelines support image conditioning, but with different methods:
   - Useful for video-to-video transformations
   - Uses `VideoConditionByKeyframeIndex` from [`ltx-core`](../ltx-core/)
 
+### Pre-Decoded Tensor Inputs
+
+Everywhere a conditioning input accepts a file path, it also accepts a pre-decoded tensor,
+letting you bypass the built-in 8-bit file decode (e.g. for 10/12-bit or 4:4:4 sources
+decoded with your own I/O):
+
+- **Images** (`ImageConditioningInput.path`): tensor of shape `(H, W, C)`
+- **Videos** (`video_conditioning`, LipDub `reference_video_path`): tensor of shape `(F, H, W, C)`
+
+Tensors may be `uint8` in `[0, 255]` or floating point in `[0, 1]`. Float inputs keep their
+full precision — no 8-bit quantization is applied — and skip the image `crf` compression
+round-trip. Resizing/cropping behaves identically to path inputs.
+
+```python
+import torch
+from ltx_pipelines.utils.args import ImageConditioningInput
+
+frame = my_high_bit_decoder("frame.exr")  # float tensor (H, W, C) in [0, 1]
+video, audio = pipeline(
+    ...,
+    images=[ImageConditioningInput(path=frame, frame_idx=0, strength=1.0)],
+)
+```
+
 ---
 
 ## 🎛️ Multimodal Guidance

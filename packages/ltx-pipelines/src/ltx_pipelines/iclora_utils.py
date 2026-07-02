@@ -17,7 +17,7 @@ from ltx_core.conditioning import (
 )
 from ltx_core.model.video_vae import TilingConfig, VideoEncoder
 from ltx_core.types import VideoLatentShape
-from ltx_pipelines.utils.media_io import decode_video_by_frame, video_preprocess
+from ltx_pipelines.utils.media_io import decode_video_by_frame, preprocess_tensor_frames, video_preprocess
 
 
 def read_lora_reference_downscale_factor(lora_path: str) -> int:
@@ -85,7 +85,7 @@ def temporal_subsample(video: torch.Tensor, temporal_scale_factor: int) -> torch
 
 def append_ic_lora_reference_video_conditionings(  # noqa: PLR0913
     conditionings: list[ConditioningItem],
-    video_conditioning: list[tuple[str, float]],
+    video_conditioning: list[tuple[str | torch.Tensor, float]],
     *,
     height: int,
     width: int,
@@ -99,7 +99,12 @@ def append_ic_lora_reference_video_conditionings(  # noqa: PLR0913
     conditioning_attention_mask: torch.Tensor | None,
     tiling_config: TilingConfig | None = None,
 ) -> None:
-    """Append :class:`VideoConditionByReferenceLatent` items for each reference path."""
+    """Append :class:`VideoConditionByReferenceLatent` items for each reference.
+    Each ``video_conditioning`` entry is ``(source, strength)`` where ``source``
+    is a file path, or a pre-decoded frame tensor of shape (F, H, W, C), uint8
+    in [0, 255] or floating point in [0, 1]. Tensor inputs skip file decode and
+    keep their full precision.
+    """
     scale = reference_downscale_factor
     if scale != 1 and (height % scale != 0 or width % scale != 0):
         raise ValueError(
@@ -108,9 +113,16 @@ def append_ic_lora_reference_video_conditionings(  # noqa: PLR0913
     ref_height = height // scale
     ref_width = width // scale
 
-    for video_path, strength in video_conditioning:
-        frame_gen = decode_video_by_frame(path=video_path, frame_cap=num_frames, device=device)
-        video = video_preprocess(frame_gen, ref_height, ref_width, dtype, device)
+    for video_source, strength in video_conditioning:
+        if isinstance(video_source, torch.Tensor):
+            if video_source.ndim != 4:
+                raise ValueError(
+                    f"Pre-decoded reference video tensor must have shape (F, H, W, C); got {tuple(video_source.shape)}."
+                )
+            video = preprocess_tensor_frames(video_source[:num_frames], ref_height, ref_width, dtype, device)
+        else:
+            frame_gen = decode_video_by_frame(path=video_source, frame_cap=num_frames, device=device)
+            video = video_preprocess(frame_gen, ref_height, ref_width, dtype, device)
         if reference_temporal_scale_factor > 1:
             video = temporal_subsample(video, reference_temporal_scale_factor)
         if tiling_config is not None:

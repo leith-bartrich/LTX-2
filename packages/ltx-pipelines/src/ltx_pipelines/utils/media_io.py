@@ -103,8 +103,43 @@ def from_vae_range(z: torch.Tensor) -> torch.Tensor:
     return torch.clamp((z + 1.0) / 2.0, 0.0, 1.0)
 
 
+def frames_to_unit_range(frames: torch.Tensor) -> torch.Tensor:
+    """Convert pre-decoded frames to float32 in [0, 1].
+    uint8 frames are scaled from [0, 255]; floating-point frames are assumed
+    to already be in [0, 1] and are only cast, so bit depths above 8 survive.
+    """
+    if frames.dtype == torch.uint8:
+        return frames.to(torch.float32) / 255.0
+    return frames.to(torch.float32)
+
+
+def preprocess_tensor_frames(
+    frames: torch.Tensor,
+    height: int,
+    width: int,
+    dtype: torch.dtype,
+    device: torch.device,
+) -> torch.Tensor:
+    """Preprocess pre-decoded frames for conditioning, bypassing file decode.
+    Tensor analogue of load_image_and_preprocess / video_preprocess.
+    Args:
+        frames: Frames of shape (H, W, C) or (F, H, W, C), either uint8 in
+            [0, 255] or floating point in [0, 1]. Float inputs keep their full
+            precision — no 8-bit quantization is applied.
+        height: Target height in pixels.
+        width: Target width in pixels.
+        dtype: Target dtype for the output tensor.
+        device: Target device for the output tensor.
+    Returns:
+        Tensor of shape (1, C, F, height, width) with values in [-1, 1].
+    """
+    frames = frames_to_unit_range(frames).to(device=device)
+    frames = resize_and_center_crop(frames, height, width)
+    return to_vae_range(frames).to(dtype=dtype)
+
+
 def load_image_and_preprocess(
-    image_path: str,
+    image_path: str | torch.Tensor,
     height: int,
     width: int,
     dtype: torch.dtype,
@@ -114,7 +149,14 @@ def load_image_and_preprocess(
     """
     Loads an image from a path and preprocesses it for conditioning.
     Note: The image is resized to the nearest multiple of 2 for compatibility with video codecs.
+    image_path may also be a pre-decoded image tensor of shape (H, W, C),
+    uint8 in [0, 255] or floating point in [0, 1]. Tensor inputs skip file
+    decode and the crf compression round-trip, preserving the source precision.
     """
+    if isinstance(image_path, torch.Tensor):
+        if image_path.ndim != 3:
+            raise ValueError(f"Pre-decoded image tensor must have shape (H, W, C); got {tuple(image_path.shape)}.")
+        return preprocess_tensor_frames(image_path, height, width, dtype, device)
     image = decode_image(image_path=image_path)
     image = preprocess(image=image, crf=crf)
     image = torch.tensor(image, dtype=torch.float32, device=device)
@@ -221,7 +263,7 @@ def resize_and_reflect_pad(tensor: torch.Tensor, height: int, width: int) -> tor
 
 
 def load_video_conditioning_hdr(
-    video_path: str,
+    video_path: str | torch.Tensor,
     height: int,
     width: int,
     frame_cap: int,
@@ -235,6 +277,10 @@ def load_video_conditioning_hdr(
     matches training. Callers are responsible for providing Rec.709 SDR
     input — the HDR IC-LoRA was trained on that color space.
     Args:
+        video_path: Path to the video file, or a pre-decoded frame tensor of
+            shape (F, H, W, C), uint8 in [0, 255] or floating point in [0, 1].
+            Tensor inputs skip file decode and keep their full precision, but
+            must still be Rec.709 SDR content.
         hdr_transform: LDR-compression name (currently only ``logc3``).
         resize_mode: How to fit the video to the target resolution.
     Yields:
@@ -245,9 +291,19 @@ def load_video_conditioning_hdr(
 
     resize_fn = resize_and_reflect_pad if resize_mode is ResizeMode.REFLECT_PAD else resize_and_center_crop
 
-    for f in decode_video_by_frame(path=video_path, frame_cap=frame_cap, device=device):
-        frame = resize_fn(f.to(torch.float32), height, width)
-        ldr = (frame / 255.0).clamp(0.0, 1.0)
+    if isinstance(video_path, torch.Tensor):
+        if video_path.ndim != 4:
+            raise ValueError(f"Pre-decoded video tensor must have shape (F, H, W, C); got {tuple(video_path.shape)}.")
+        unit_frames: Iterator[torch.Tensor] = (
+            frames_to_unit_range(f).to(device=device) for f in video_path[:frame_cap]
+        )
+    else:
+        decoded = decode_video_by_frame(path=video_path, frame_cap=frame_cap, device=device)
+        unit_frames = (f.to(torch.float32) / 255.0 for f in decoded)
+
+    for f in unit_frames:
+        frame = resize_fn(f, height, width)
+        ldr = frame.clamp(0.0, 1.0)
         compressed = LogC3().compress_ldr(ldr)
         yield to_vae_range(compressed).to(device=device, dtype=dtype)
 

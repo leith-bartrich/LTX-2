@@ -302,7 +302,7 @@ class HDRICLoraPipeline:
         width: int,
         num_frames: int,
         frame_rate: float,
-        video_conditioning: list[tuple[str, float]],
+        video_conditioning: list[tuple[str | torch.Tensor, float]],
         tiling_config: TilingConfig | None = None,
         high_quality_hdr: bool = False,
         stage2_tilings: list[TileCountConfig] | None = None,
@@ -320,7 +320,9 @@ class HDRICLoraPipeline:
                 as *height*.
             num_frames: Number of frames to generate.
             frame_rate: Output video frame rate.
-            video_conditioning: List of (path, strength) tuples for IC-LoRA video conditioning.
+            video_conditioning: List of (path, strength) tuples for IC-LoRA video conditioning. Each
+                path may also be a pre-decoded frame tensor of shape (F, H, W, C), uint8 or float in
+                [0, 1] (must still be Rec.709 SDR content).
             high_quality_hdr: High-quality HDR mode. Duplicates each conditioning
                 frame and generates at 2x frame count, then keeps every other
                 output frame. Reduces temporal artifacts at the cost of ~2x
@@ -578,7 +580,7 @@ class HDRICLoraPipeline:
 
     def _create_conditionings(
         self,
-        video_conditioning: list[tuple[str, float]],
+        video_conditioning: list[tuple[str | torch.Tensor, float]],
         height: int,
         width: int,
         num_frames: int,
@@ -818,6 +820,8 @@ Max frames by resolution (fp8_cast, bfloat16 VAE, tiled decode)
         "and keeps every other frame for smoother output. ~2x slower.",
     )
     return parser
+
+
 @torch.inference_mode()
 def main() -> None:
     """Batch HDR IC-LoRA inference: per-frame EXR + tonemapped ProRes .mov."""

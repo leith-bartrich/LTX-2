@@ -137,7 +137,7 @@ class ICLoraPipeline:
         num_frames: int,
         frame_rate: float,
         images: list[ImageConditioningInput],
-        video_conditioning: list[tuple[str, float]],
+        video_conditioning: list[tuple[str | torch.Tensor, float]],
         enhance_prompt: bool = False,
         tiling_config: TilingConfig | None = None,
         conditioning_attention_strength: float = 1.0,
@@ -155,8 +155,10 @@ class ICLoraPipeline:
             width: Output video width in pixels (must be divisible by 64).
             num_frames: Number of frames to generate.
             frame_rate: Output video frame rate.
-            images: List of (path, frame_idx, strength) tuples for image conditioning.
-            video_conditioning: List of (path, strength) tuples for IC-LoRA video conditioning.
+            images: List of (path, frame_idx, strength) tuples for image conditioning. Each
+                path may also be a pre-decoded image tensor of shape (H, W, C), uint8 or float in [0, 1].
+            video_conditioning: List of (path, strength) tuples for IC-LoRA video conditioning. Each
+                path may also be a pre-decoded frame tensor of shape (F, H, W, C), uint8 or float in [0, 1].
             enhance_prompt: Whether to enhance the prompt using the text encoder.
             tiling_config: Optional tiling configuration for VAE decoding.
             conditioning_attention_strength: Scale factor for IC-LoRA conditioning attention.
@@ -288,7 +290,7 @@ class ICLoraPipeline:
     def _create_conditionings(
         self,
         images: list[ImageConditioningInput],
-        video_conditioning: list[tuple[str, float]],
+        video_conditioning: list[tuple[str | torch.Tensor, float]],
         height: int,
         width: int,
         num_frames: int,
