@@ -20,10 +20,15 @@ patches live in the utility/I-O layer as additive changes, avoiding pipeline `__
 
 ## Patch stack
 
-| Branch | What it does |
-|---|---|
-| `fork/docs` | This file + README banner (bottom of stack) |
-| `feat/tensor-conditioning-inputs` | Conditioning inputs accept pre-decoded tensors everywhere a path is accepted, bypassing the 8-bit file decode (see `packages/ltx-pipelines/README.md` § Pre-Decoded Tensor Inputs) |
+Each active patch is tracked by an open issue on this fork (label `active-patch`); the issue
+is closed when the patch is retired (absorbed upstream, dropped, or superseded). We deliberately
+do not use PRs: patches are perpetually rebased and re-merged, which the PR merged/closed
+lifecycle misrepresents.
+
+| Branch | Issue | What it does |
+|---|---|---|
+| `fork/docs` | — | This file + README banner (bottom of stack) |
+| `feat/tensor-conditioning-inputs` | [#1](https://github.com/leith-bartrich/LTX-2/issues/1) | Conditioning inputs accept pre-decoded tensors everywhere a path is accepted, bypassing the 8-bit file decode (see `packages/ltx-pipelines/README.md` § Pre-Decoded Tensor Inputs) |
 
 ## Versioning & using as a dependency
 
