@@ -20,10 +20,12 @@ patches live in the utility/I-O layer as additive changes, avoiding pipeline `__
 
 ## Patch stack
 
-Each active patch is tracked by an open issue on this fork (label `active-patch`); the issue
-is closed when the patch is retired (absorbed upstream, dropped, or superseded). We deliberately
-do not use PRs: patches are perpetually rebased and re-merged, which the PR merged/closed
-lifecycle misrepresents.
+Each active patch is tracked by an open issue on this fork (label `active-patch`), with the
+patch branch linked under the issue's **Development** field (a ref pointer, so it survives
+rebases and force-pushes). The issue is closed when the patch is retired (absorbed upstream,
+dropped, or superseded). We deliberately do not use PRs: patches are perpetually rebased and
+re-merged, which the PR merged/closed lifecycle misrepresents. Never open a PR from a linked
+branch — merging it would auto-close the tracking issue.
 
 | Branch | Issue | What it does |
 |---|---|---|
