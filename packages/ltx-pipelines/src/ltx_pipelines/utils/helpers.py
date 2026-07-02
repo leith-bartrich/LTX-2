@@ -20,6 +20,7 @@ from ltx_pipelines.utils.media_io import (
     decode_audio_from_file,
     decode_image,
     decode_video_from_file,
+    frames_to_unit_range,
     get_videostream_fps,
     load_image_and_preprocess,
     resize_aspect_ratio_preserving,
@@ -310,15 +311,19 @@ def clean_response(text: str) -> str:
 def generate_enhanced_prompt(
     text_encoder: GemmaTextEncoder,
     prompt: str,
-    image_path: str | None = None,
+    image_path: str | torch.Tensor | None = None,
     image_long_side: int = 896,
     seed: int = 42,
 ) -> str:
-    """Generate an enhanced prompt from a text encoder and a prompt."""
-    image = None
-    if image_path:
-        image = decode_image(image_path=image_path)
-        image = torch.tensor(image)
+    """Generate an enhanced prompt from a text encoder and a prompt.
+    image_path may also be a pre-decoded image tensor of shape (H, W, C),
+    uint8 in [0, 255] or floating point in [0, 1].
+    """
+    if image_path is not None:
+        if isinstance(image_path, torch.Tensor):
+            image = frames_to_unit_range(image_path) * 255.0
+        else:
+            image = torch.tensor(decode_image(image_path=image_path))
         image = resize_aspect_ratio_preserving(image, image_long_side).to(torch.uint8)
         prompt = text_encoder.enhance_i2v(prompt, image, seed=seed)
     else:

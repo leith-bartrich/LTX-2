@@ -4,6 +4,8 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, NamedTuple
 
+import torch
+
 from ltx_core.loader import LTXV_LORA_COMFY_RENAMING_MAP, LoraPathStrengthAndSDOps
 from ltx_core.model.transformer.compiling import CompilationConfig
 from ltx_core.quantization import QuantizationPolicy
@@ -20,7 +22,14 @@ from ltx_pipelines.utils.types import OffloadMode
 
 
 class ImageConditioningInput(NamedTuple):
-    path: str
+    """Image conditioning input.
+    ``path`` is a file path, or a pre-decoded image tensor of shape (H, W, C),
+    uint8 in [0, 255] or floating point in [0, 1]. Tensor inputs skip file
+    decode and the ``crf`` compression round-trip (``crf`` is ignored),
+    preserving the source precision.
+    """
+
+    path: str | torch.Tensor
     frame_idx: int
     strength: float
     crf: int = DEFAULT_IMAGE_CRF
